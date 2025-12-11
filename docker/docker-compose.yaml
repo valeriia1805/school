@@ -1,0 +1,18 @@
+version: "3.9"
+
+services:
+  postgres:
+    image: postgres:latest
+    container_name: hogwarts-postgres
+    environment:
+      POSTGRES_DB: hogwarts
+      POSTGRES_USER: student
+      POSTGRES_PASSWORD: chocolatefrog
+    ports:
+      - "5433:5432"
+    volumes:
+      - hogwarts_pgdata:/var/lib/postgresql/data
+    restart: unless-stopped
+
+volumes:
+  hogwarts_pgdata:

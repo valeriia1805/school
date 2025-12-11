@@ -1,49 +1,40 @@
 package ru.hogwarts.school.service;
 
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import ru.hogwarts.school.exception.StudentNotFoundException;
 import ru.hogwarts.school.model.Student;
+import ru.hogwarts.school.repository.StudentRepository;
 
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 @Service
+@RequiredArgsConstructor
 public class StudentService {
 
-    private final Map<Long, Student> students = new HashMap<>();
-    private long idCnt = 0;
+    private final StudentRepository studentRepository;
 
     public Student create(Student student) {
-        students.put(idCnt, student);
-        student.setId(idCnt++);
-        return student;
+        return studentRepository.save(student);
     }
 
     public Student get(Long id) {
-        return students.get(id);
+        return studentRepository.findById(id).orElse(null);
     }
 
     public Student update(long id, Student update) {
-        if (!students.containsKey(id)) {
-            throw new StudentNotFoundException(id);
-        }
-        Student persisted = students.get(id);
+        Student persisted = studentRepository.findById(id)
+                .orElseThrow(() -> new StudentNotFoundException(id));
         persisted.setName(update.getName());
         persisted.setAge(update.getAge());
-        return students.put(id, persisted);
+        return studentRepository.save(persisted);
     }
 
     public void delete(long id) {
-        if (!students.containsKey(id)) {
-            throw new StudentNotFoundException(id);
-        }
-        students.remove(id);
+        studentRepository.deleteById(id);
     }
 
     public List<Student> getByAge(int age) {
-        return students.values().stream()
-                .filter(student -> student.getAge() == age)
-                .toList();
+        return studentRepository.findByAge(age);
     }
 }
