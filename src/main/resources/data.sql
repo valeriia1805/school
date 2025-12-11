@@ -1,0 +1,26 @@
+INSERT INTO faculty (name, color) VALUES ('Gryffindor', 'Red');
+INSERT INTO faculty (name, color) VALUES ('Slytherin', 'Green');
+INSERT INTO faculty (name, color) VALUES ('Ravenclaw', 'Blue');
+INSERT INTO faculty (name, color) VALUES ('Hufflepuff', 'Yellow');
+INSERT INTO faculty (name, color) VALUES ('Auror Academy', 'Black');
+
+INSERT INTO student (name, age, faculty_id) VALUES ('Harry Potter', 17, 1);
+INSERT INTO student (name, age, faculty_id) VALUES ('Hermione Granger', 17, 1);
+INSERT INTO student (name, age, faculty_id) VALUES ('Ron Weasley', 17, 1);
+INSERT INTO student (name, age, faculty_id) VALUES ('Draco Malfoy', 17, 2);
+INSERT INTO student (name, age, faculty_id) VALUES ('Pansy Parkinson', 16, 2);
+INSERT INTO student (name, age, faculty_id) VALUES ('Severus Prince', 18, 2);
+INSERT INTO student (name, age, faculty_id) VALUES ('Luna Lovegood', 16, 3);
+INSERT INTO student (name, age, faculty_id) VALUES ('Cho Chang', 17, 3);
+INSERT INTO student (name, age, faculty_id) VALUES ('Marcus Belby', 18, 3);
+INSERT INTO student (name, age, faculty_id) VALUES ('Cedric Diggory', 18, 4);
+INSERT INTO student (name, age, faculty_id) VALUES ('Nymphadora Tonks', 19, 4);
+INSERT INTO student (name, age, faculty_id) VALUES ('Ernie Macmillan', 17, 4);
+INSERT INTO student (name, age, faculty_id) VALUES ('Alastor Moody Jr', 20, 5);
+INSERT INTO student (name, age, faculty_id) VALUES ('Kingsley Shacklebolt', 21, 5);
+INSERT INTO student (name, age, faculty_id) VALUES ('Emmeline Vance', 20, 5);
+INSERT INTO student (name, age, faculty_id) VALUES ('Lavender Brown', 16, 1);
+INSERT INTO student (name, age, faculty_id) VALUES ('Millicent Bulstrode', 17, 2);
+INSERT INTO student (name, age, faculty_id) VALUES ('Padma Patil', 16, 3);
+INSERT INTO student (name, age, faculty_id) VALUES ('Hannah Abbott', 17, 4);
+INSERT INTO student (name, age, faculty_id) VALUES ('Dawlish Trainee', 19, 5);

@@ -4,8 +4,10 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import ru.hogwarts.school.exception.FacultyNotFoundException;
 import ru.hogwarts.school.model.Faculty;
+import ru.hogwarts.school.model.Student;
 import ru.hogwarts.school.repository.FacultyRepository;
 
+import java.util.Collections;
 import java.util.List;
 
 @Service
@@ -42,5 +44,15 @@ public class FacultyService {
 
     public List<Faculty> getByColor(String color) {
         return facultyRepository.findAllByColorIgnoreCase(color);
+    }
+
+    public List<Faculty> findByNameOrColor(String query) {
+        return facultyRepository.findAllByNameIgnoreCaseOrColorIgnoreCase(query, query);
+    }
+
+    public List<Student> getStudentsByFaculty(long facultyId) {
+        return facultyRepository.findById(facultyId)
+                .map(Faculty::getStudents)
+                .orElse(Collections.emptyList());
     }
 }
