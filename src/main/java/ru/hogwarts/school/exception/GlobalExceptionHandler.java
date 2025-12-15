@@ -19,4 +19,10 @@ public class GlobalExceptionHandler {
     public String handleFacultyNotFound(FacultyNotFoundException e) {
         return e.getMessage();
     }
+
+    @ExceptionHandler(AvatarNotFoundException.class)
+    @ResponseStatus(HttpStatus.NOT_FOUND)
+    public String handleAvatarNotFound(AvatarNotFoundException e) {
+        return e.getMessage();
+    }
 }
