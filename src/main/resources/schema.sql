@@ -14,3 +14,14 @@ CREATE TABLE IF NOT EXISTS student (
     CONSTRAINT fk_student_faculty
     FOREIGN KEY (faculty_id) REFERENCES faculty(id)
 );
+
+CREATE TABLE IF NOT EXISTS avatar (
+    id         BIGSERIAL PRIMARY KEY,
+    file_path  VARCHAR(1024) NOT NULL,
+    file_size  BIGINT        NOT NULL,
+    media_type VARCHAR(255)  NOT NULL,
+    data       BYTEA         NOT NULL,
+    student_id BIGINT UNIQUE,
+    CONSTRAINT fk_avatar_student
+    FOREIGN KEY (student_id) REFERENCES student(id)
+);
