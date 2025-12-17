@@ -12,13 +12,14 @@ import org.springframework.test.web.servlet.request.MockMvcRequestBuilders;
 import ru.hogwarts.school.exception.GlobalExceptionHandler;
 import ru.hogwarts.school.model.Faculty;
 import ru.hogwarts.school.model.Student;
+import ru.hogwarts.school.repository.FacultyRepository;
 import ru.hogwarts.school.service.FacultyService;
 
 import java.util.List;
+import java.util.Optional;
 
 import static org.hamcrest.Matchers.hasSize;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.reset;
 import static org.mockito.Mockito.verify;
@@ -29,7 +30,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @WebMvcTest(controllers = FacultyController.class)
-@Import(GlobalExceptionHandler.class)
+@Import({FacultyService.class, GlobalExceptionHandler.class})
 class FacultyControllerWebMvcTest {
 
     private static final String BASE_URL = "/faculty";
@@ -52,11 +53,11 @@ class FacultyControllerWebMvcTest {
     private MockMvc mockMvc;
 
     @MockitoBean
-    private FacultyService facultyService;
+    private FacultyRepository facultyRepository;
 
     @BeforeEach
     void setUp() {
-        reset(facultyService);
+        reset(facultyRepository);
     }
 
     @Test
@@ -67,7 +68,7 @@ class FacultyControllerWebMvcTest {
                 .color("Red")
                 .build();
 
-        when(facultyService.create(any(Faculty.class))).thenReturn(created);
+        when(facultyRepository.save(any(Faculty.class))).thenReturn(created);
 
         mockMvc.perform(
                         MockMvcRequestBuilders.post(BASE_URL)
@@ -80,8 +81,8 @@ class FacultyControllerWebMvcTest {
                 .andExpect(jsonPath("$.name").value("Gryffindor"))
                 .andExpect(jsonPath("$.color").value("Red"));
 
-        verify(facultyService).create(any(Faculty.class));
-        verifyNoMoreInteractions(facultyService);
+        verify(facultyRepository).save(any(Faculty.class));
+        verifyNoMoreInteractions(facultyRepository);
     }
 
     @Test
@@ -92,7 +93,7 @@ class FacultyControllerWebMvcTest {
                 .color("Green")
                 .build();
 
-        when(facultyService.get(10L)).thenReturn(faculty);
+        when(facultyRepository.findById(10L)).thenReturn(Optional.of(faculty));
 
         mockMvc.perform(MockMvcRequestBuilders.get(BASE_URL + "/{id}", 10L))
                 .andExpect(status().isOk())
@@ -101,19 +102,26 @@ class FacultyControllerWebMvcTest {
                 .andExpect(jsonPath("$.name").value("Slytherin"))
                 .andExpect(jsonPath("$.color").value("Green"));
 
-        verify(facultyService).get(10L);
-        verifyNoMoreInteractions(facultyService);
+        verify(facultyRepository).findById(10L);
+        verifyNoMoreInteractions(facultyRepository);
     }
 
     @Test
     void updateReturns200AndBody() throws Exception {
+        Faculty persisted = Faculty.builder()
+                .id(5L)
+                .name("Old Name")
+                .color("Old Color")
+                .build();
+
         Faculty updated = Faculty.builder()
                 .id(5L)
                 .name("Hufflepuff")
                 .color("Yellow")
                 .build();
 
-        when(facultyService.update(eq(5L), any(Faculty.class))).thenReturn(updated);
+        when(facultyRepository.findById(5L)).thenReturn(Optional.of(persisted));
+        when(facultyRepository.save(any(Faculty.class))).thenReturn(updated);
 
         mockMvc.perform(
                         MockMvcRequestBuilders.put(BASE_URL + "/{id}", 5L)
@@ -126,25 +134,28 @@ class FacultyControllerWebMvcTest {
                 .andExpect(jsonPath("$.name").value("Hufflepuff"))
                 .andExpect(jsonPath("$.color").value("Yellow"));
 
-        verify(facultyService).update(eq(5L), any(Faculty.class));
-        verifyNoMoreInteractions(facultyService);
+        verify(facultyRepository).findById(5L);
+        verify(facultyRepository).save(any(Faculty.class));
+        verifyNoMoreInteractions(facultyRepository);
     }
 
     @Test
     void deleteReturns204AndEmptyBody() throws Exception {
-        doNothing().when(facultyService).delete(7L);
+        when(facultyRepository.existsById(7L)).thenReturn(true);
+        doNothing().when(facultyRepository).deleteById(7L);
 
         mockMvc.perform(MockMvcRequestBuilders.delete(BASE_URL + "/{id}", 7L))
                 .andExpect(status().isNoContent())
                 .andExpect(content().string(""));
 
-        verify(facultyService).delete(7L);
-        verifyNoMoreInteractions(facultyService);
+        verify(facultyRepository).existsById(7L);
+        verify(facultyRepository).deleteById(7L);
+        verifyNoMoreInteractions(facultyRepository);
     }
 
     @Test
     void getByColorUsesParamReturns200AndBody() throws Exception {
-        when(facultyService.getByColor("red")).thenReturn(List.of(
+        when(facultyRepository.findAllByColorIgnoreCase("red")).thenReturn(List.of(
                 Faculty.builder().id(1L).name("Gryffindor").color("Red").build(),
                 Faculty.builder().id(2L).name("Ravenclaw").color("Blue").build()
         ));
@@ -159,13 +170,13 @@ class FacultyControllerWebMvcTest {
                 .andExpect(jsonPath("$[0].id").value(1))
                 .andExpect(jsonPath("$[1].id").value(2));
 
-        verify(facultyService).getByColor("red");
-        verifyNoMoreInteractions(facultyService);
+        verify(facultyRepository).findAllByColorIgnoreCase("red");
+        verifyNoMoreInteractions(facultyRepository);
     }
 
     @Test
     void findByNameOrColorUsesParamReturns200AndBody() throws Exception {
-        when(facultyService.findByNameOrColor("blu")).thenReturn(List.of(
+        when(facultyRepository.findAllByNameIgnoreCaseOrColorIgnoreCase("blu", "blu")).thenReturn(List.of(
                 Faculty.builder().id(3L).name("Ravenclaw").color("Blue").build()
         ));
 
@@ -179,16 +190,25 @@ class FacultyControllerWebMvcTest {
                 .andExpect(jsonPath("$[0].id").value(3))
                 .andExpect(jsonPath("$[0].name").value("Ravenclaw"));
 
-        verify(facultyService).findByNameOrColor("blu");
-        verifyNoMoreInteractions(facultyService);
+        verify(facultyRepository).findAllByNameIgnoreCaseOrColorIgnoreCase("blu", "blu");
+        verifyNoMoreInteractions(facultyRepository);
     }
 
     @Test
     void getStudentsByFacultyReturns200AndBody() throws Exception {
-        when(facultyService.getStudentsByFaculty(100L)).thenReturn(List.of(
+        List<Student> students = List.of(
                 Student.builder().id(1L).name("Harry").age(11).build(),
                 Student.builder().id(2L).name("Hermione").age(11).build()
-        ));
+        );
+
+        Faculty faculty = Faculty.builder()
+                .id(100L)
+                .name("Any")
+                .color("Any")
+                .students(students)
+                .build();
+
+        when(facultyRepository.findById(100L)).thenReturn(Optional.of(faculty));
 
         mockMvc.perform(MockMvcRequestBuilders.get(BASE_URL + "/{id}/students", 100L))
                 .andExpect(status().isOk())
@@ -197,7 +217,7 @@ class FacultyControllerWebMvcTest {
                 .andExpect(jsonPath("$[0].id").value(1))
                 .andExpect(jsonPath("$[1].id").value(2));
 
-        verify(facultyService).getStudentsByFaculty(100L);
-        verifyNoMoreInteractions(facultyService);
+        verify(facultyRepository).findById(100L);
+        verifyNoMoreInteractions(facultyRepository);
     }
 }

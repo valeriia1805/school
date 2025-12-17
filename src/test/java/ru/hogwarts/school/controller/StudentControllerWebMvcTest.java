@@ -10,16 +10,17 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders;
 import ru.hogwarts.school.exception.GlobalExceptionHandler;
-import ru.hogwarts.school.exception.StudentNotFoundException;
 import ru.hogwarts.school.model.Faculty;
 import ru.hogwarts.school.model.Student;
+import ru.hogwarts.school.repository.StudentRepository;
 import ru.hogwarts.school.service.StudentService;
 
 import java.util.List;
+import java.util.Optional;
 
 import static org.hamcrest.Matchers.hasSize;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.reset;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
@@ -29,7 +30,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @WebMvcTest(controllers = StudentController.class)
-@Import(GlobalExceptionHandler.class)
+@Import({StudentService.class, GlobalExceptionHandler.class})
 class StudentControllerWebMvcTest {
 
     private static final String BASE_URL = "/student";
@@ -53,11 +54,11 @@ class StudentControllerWebMvcTest {
     private MockMvc mockMvc;
 
     @MockitoBean
-    private StudentService studentService;
+    private StudentRepository studentRepository;
 
     @BeforeEach
     void setUp() {
-        reset(studentService);
+        reset(studentRepository);
     }
 
     @Test
@@ -68,8 +69,7 @@ class StudentControllerWebMvcTest {
                 .age(11)
                 .build();
 
-        when(studentService.create(any(Student.class)))
-                .thenReturn(created);
+        when(studentRepository.save(any(Student.class))).thenReturn(created);
 
         mockMvc.perform(
                         MockMvcRequestBuilders.post(BASE_URL)
@@ -82,8 +82,8 @@ class StudentControllerWebMvcTest {
                 .andExpect(jsonPath("$.name").value("Harry Potter"))
                 .andExpect(jsonPath("$.age").value(11));
 
-        verify(studentService).create(any(Student.class));
-        verifyNoMoreInteractions(studentService);
+        verify(studentRepository).save(any(Student.class));
+        verifyNoMoreInteractions(studentRepository);
     }
 
     @Test
@@ -94,8 +94,7 @@ class StudentControllerWebMvcTest {
                 .age(11)
                 .build();
 
-        when(studentService.get(STUDENT_ID))
-                .thenReturn(persisted);
+        when(studentRepository.findById(STUDENT_ID)).thenReturn(Optional.of(persisted));
 
         mockMvc.perform(
                         MockMvcRequestBuilders.get(BASE_URL + "/{id}", STUDENT_ID)
@@ -106,20 +105,26 @@ class StudentControllerWebMvcTest {
                 .andExpect(jsonPath("$.name").value("Harry Potter"))
                 .andExpect(jsonPath("$.age").value(11));
 
-        verify(studentService).get(STUDENT_ID);
-        verifyNoMoreInteractions(studentService);
+        verify(studentRepository).findById(STUDENT_ID);
+        verifyNoMoreInteractions(studentRepository);
     }
 
     @Test
     void updateReturns200AndBody() throws Exception {
+        Student persisted = Student.builder()
+                .id(STUDENT_ID)
+                .name("Harry Potter")
+                .age(11)
+                .build();
+
         Student updated = Student.builder()
                 .id(STUDENT_ID)
                 .name("Harry James Potter")
                 .age(12)
                 .build();
 
-        when(studentService.update(eq(STUDENT_ID), any(Student.class)))
-                .thenReturn(updated);
+        when(studentRepository.findById(STUDENT_ID)).thenReturn(Optional.of(persisted));
+        when(studentRepository.save(any(Student.class))).thenReturn(updated);
 
         mockMvc.perform(
                         MockMvcRequestBuilders.put(BASE_URL + "/{id}", STUDENT_ID)
@@ -132,20 +137,23 @@ class StudentControllerWebMvcTest {
                 .andExpect(jsonPath("$.name").value("Harry James Potter"))
                 .andExpect(jsonPath("$.age").value(12));
 
-        verify(studentService).update(eq(STUDENT_ID), any(Student.class));
-        verifyNoMoreInteractions(studentService);
+        verify(studentRepository).findById(STUDENT_ID);
+        verify(studentRepository).save(any(Student.class));
+        verifyNoMoreInteractions(studentRepository);
     }
 
     @Test
     void deleteReturns204AndEmptyBody() throws Exception {
+        doNothing().when(studentRepository).deleteById(STUDENT_ID);
+
         mockMvc.perform(
                         MockMvcRequestBuilders.delete(BASE_URL + "/{id}", STUDENT_ID)
                 )
                 .andExpect(status().isNoContent())
                 .andExpect(content().string(""));
 
-        verify(studentService).delete(STUDENT_ID);
-        verifyNoMoreInteractions(studentService);
+        verify(studentRepository).deleteById(STUDENT_ID);
+        verifyNoMoreInteractions(studentRepository);
     }
 
     @Test
@@ -155,8 +163,7 @@ class StudentControllerWebMvcTest {
                 Student.builder().id(2L).name("Hermione Granger").age(11).build()
         );
 
-        when(studentService.getByAge(11))
-                .thenReturn(students);
+        when(studentRepository.findByAge(11)).thenReturn(students);
 
         mockMvc.perform(
                         MockMvcRequestBuilders.get(BASE_URL)
@@ -172,8 +179,8 @@ class StudentControllerWebMvcTest {
                 .andExpect(jsonPath("$[1].name").value("Hermione Granger"))
                 .andExpect(jsonPath("$[1].age").value(11));
 
-        verify(studentService).getByAge(11);
-        verifyNoMoreInteractions(studentService);
+        verify(studentRepository).findByAge(11);
+        verifyNoMoreInteractions(studentRepository);
     }
 
     @Test
@@ -182,8 +189,7 @@ class StudentControllerWebMvcTest {
                 Student.builder().id(1L).name("Harry Potter").age(11).build()
         );
 
-        when(studentService.getByAgeBetween(10, 12))
-                .thenReturn(students);
+        when(studentRepository.findByAgeBetween(10, 12)).thenReturn(students);
 
         mockMvc.perform(
                         MockMvcRequestBuilders.get(BASE_URL + "/age-between")
@@ -197,8 +203,8 @@ class StudentControllerWebMvcTest {
                 .andExpect(jsonPath("$[0].name").value("Harry Potter"))
                 .andExpect(jsonPath("$[0].age").value(11));
 
-        verify(studentService).getByAgeBetween(10, 12);
-        verifyNoMoreInteractions(studentService);
+        verify(studentRepository).findByAgeBetween(10, 12);
+        verifyNoMoreInteractions(studentRepository);
     }
 
     @Test
@@ -209,8 +215,14 @@ class StudentControllerWebMvcTest {
                 .color("Red")
                 .build();
 
-        when(studentService.getFacultyOfStudent(STUDENT_ID))
-                .thenReturn(faculty);
+        Student student = Student.builder()
+                .id(STUDENT_ID)
+                .name("Harry Potter")
+                .age(11)
+                .faculty(faculty)
+                .build();
+
+        when(studentRepository.findById(STUDENT_ID)).thenReturn(Optional.of(student));
 
         mockMvc.perform(
                         MockMvcRequestBuilders.get(BASE_URL + "/{id}/faculty", STUDENT_ID)
@@ -221,14 +233,13 @@ class StudentControllerWebMvcTest {
                 .andExpect(jsonPath("$.name").value("Gryffindor"))
                 .andExpect(jsonPath("$.color").value("Red"));
 
-        verify(studentService).getFacultyOfStudent(STUDENT_ID);
-        verifyNoMoreInteractions(studentService);
+        verify(studentRepository).findById(STUDENT_ID);
+        verifyNoMoreInteractions(studentRepository);
     }
 
     @Test
     void getReturns404WhenStudentNotFound() throws Exception {
-        when(studentService.get(STUDENT_ID))
-                .thenThrow(new StudentNotFoundException(STUDENT_ID));
+        when(studentRepository.findById(STUDENT_ID)).thenReturn(Optional.empty());
 
         mockMvc.perform(
                         MockMvcRequestBuilders.get(BASE_URL + "/{id}", STUDENT_ID)
@@ -236,7 +247,7 @@ class StudentControllerWebMvcTest {
                 .andExpect(status().isNotFound())
                 .andExpect(content().string("Student with ID = 1 not found."));
 
-        verify(studentService).get(STUDENT_ID);
-        verifyNoMoreInteractions(studentService);
+        verify(studentRepository).findById(STUDENT_ID);
+        verifyNoMoreInteractions(studentRepository);
     }
 }
