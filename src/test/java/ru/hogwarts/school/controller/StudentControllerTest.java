@@ -2,199 +2,208 @@ package ru.hogwarts.school.controller;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.mockito.ArgumentCaptor;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.SpringBootConfiguration;
-import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
-import org.springframework.boot.hibernate.autoconfigure.HibernateJpaAutoConfiguration;
-import org.springframework.boot.jdbc.autoconfigure.DataSourceAutoConfiguration;
 import org.springframework.boot.resttestclient.TestRestTemplate;
 import org.springframework.boot.resttestclient.autoconfigure.AutoConfigureTestRestTemplate;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.context.annotation.Import;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpMethod;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
-import ru.hogwarts.school.exception.GlobalExceptionHandler;
 import ru.hogwarts.school.model.Faculty;
 import ru.hogwarts.school.model.Student;
-import ru.hogwarts.school.service.StudentService;
+import ru.hogwarts.school.repository.AvatarRepository;
+import ru.hogwarts.school.repository.FacultyRepository;
+import ru.hogwarts.school.repository.StudentRepository;
 
 import java.util.List;
+import java.util.Optional;
 
-import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.reset;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
-@SpringBootTest(
-        webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
-        classes = StudentControllerTest.TestApp.class
-)
+@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @AutoConfigureTestRestTemplate
+@ActiveProfiles("test")
 class StudentControllerTest {
 
-    @SpringBootConfiguration
-    @EnableAutoConfiguration(exclude = {
-            DataSourceAutoConfiguration.class,
-            HibernateJpaAutoConfiguration.class
-    })
-    @Import({StudentController.class, GlobalExceptionHandler.class})
-    static class TestApp {
-    }
+    private static final long STUDENT_ID = 1L;
+    private static final String STUDENT_NAME = "John Doe";
+    private static final int STUDENT_AGE = 10;
+
+    private static final String NEW_NAME = "New Name";
+    private static final int NEW_AGE = 11;
+
+    private static final long FACULTY_ID = 100L;
+    private static final String FACULTY_NAME = "Gryffindor";
+    private static final String FACULTY_COLOR = "Red";
 
     @Autowired
     private TestRestTemplate restTemplate;
 
     @MockitoBean
-    private StudentService studentService;
+    private StudentRepository studentRepository;
+
+    @MockitoBean
+    private FacultyRepository facultyRepository;
+
+    @MockitoBean
+    private AvatarRepository avatarRepository;
+
+    private Student student;
+    private Student createdStudent;
+    private Student updateStudent;
+    private Student updatedStudent;
 
     @BeforeEach
-    void beforeEach() {
-        reset(studentService);
+    void setUp() {
+        reset(studentRepository, facultyRepository, avatarRepository);
+
+        student = Student.builder()
+                .name(STUDENT_NAME)
+                .age(STUDENT_AGE)
+                .build();
+
+        createdStudent = Student.builder()
+                .id(STUDENT_ID)
+                .name(STUDENT_NAME)
+                .age(STUDENT_AGE)
+                .build();
+
+        updateStudent = Student.builder()
+                .name(NEW_NAME)
+                .age(NEW_AGE)
+                .build();
+
+        updatedStudent = Student.builder()
+                .id(STUDENT_ID)
+                .name(NEW_NAME)
+                .age(NEW_AGE)
+                .build();
     }
 
     @Test
     void create_shouldReturn201AndBody() {
-        Student request = Student.builder()
-                .name("Harry Potter")
-                .age(11)
-                .build();
+        when(studentRepository.save(any(Student.class))).thenReturn(createdStudent);
 
-        Student saved = Student.builder()
-                .id(1L)
-                .name("Harry Potter")
-                .age(11)
-                .build();
+        ResponseEntity<Student> response = restTemplate.postForEntity("/student", student, Student.class);
 
-        when(studentService.create(any(Student.class))).thenReturn(saved);
+        assertEquals(HttpStatus.CREATED, response.getStatusCode());
+        assertEquals(createdStudent, response.getBody());
 
-        ResponseEntity<Student> response = restTemplate.postForEntity("/student", request, Student.class);
-
-        assertThat(response.getStatusCode().value()).isEqualTo(201);
-        assertThat(response.getBody()).isNotNull();
-        assertThat(response.getBody().getId()).isEqualTo(1L);
-
-        ArgumentCaptor<Student> captor = ArgumentCaptor.forClass(Student.class);
-        verify(studentService, times(1)).create(captor.capture());
-        assertThat(captor.getValue().getName()).isEqualTo("Harry Potter");
-        assertThat(captor.getValue().getAge()).isEqualTo(11);
+        verify(studentRepository, times(1)).save(any(Student.class));
     }
 
     @Test
     void get_shouldReturn200AndBody() {
-        Student persisted = Student.builder()
-                .id(1L)
-                .name("Harry Potter")
-                .age(11)
-                .build();
+        when(studentRepository.findById(STUDENT_ID)).thenReturn(Optional.of(createdStudent));
 
-        when(studentService.get(1L)).thenReturn(persisted);
+        ResponseEntity<Student> response = restTemplate.getForEntity("/student/{id}", Student.class, STUDENT_ID);
 
-        ResponseEntity<Student> response = restTemplate.getForEntity("/student/1", Student.class);
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        assertEquals(createdStudent, response.getBody());
 
-        assertThat(response.getStatusCode().value()).isEqualTo(200);
-        assertThat(response.getBody()).isNotNull();
-        assertThat(response.getBody().getName()).isEqualTo("Harry Potter");
-
-        verify(studentService, times(1)).get(1L);
+        verify(studentRepository, times(1)).findById(STUDENT_ID);
     }
 
     @Test
     void update_shouldReturn200AndBody() {
-        Student update = Student.builder()
-                .name("Harry James Potter")
-                .age(12)
-                .build();
-
-        Student updated = Student.builder()
-                .id(1L)
-                .name("Harry James Potter")
-                .age(12)
-                .build();
-
-        when(studentService.update(eq(1L), any(Student.class))).thenReturn(updated);
+        when(studentRepository.findById(STUDENT_ID)).thenReturn(Optional.of(createdStudent));
+        when(studentRepository.save(any(Student.class))).thenReturn(updatedStudent);
 
         ResponseEntity<Student> response = restTemplate.exchange(
-                "/student/1",
+                "/student/{id}",
                 HttpMethod.PUT,
-                new HttpEntity<>(update),
-                Student.class
+                new HttpEntity<>(updateStudent),
+                Student.class,
+                STUDENT_ID
         );
 
-        assertThat(response.getStatusCode().value()).isEqualTo(200);
-        assertThat(response.getBody()).isNotNull();
-        assertThat(response.getBody().getAge()).isEqualTo(12);
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        assertEquals(updatedStudent, response.getBody());
 
-        ArgumentCaptor<Student> captor = ArgumentCaptor.forClass(Student.class);
-        verify(studentService, times(1)).update(eq(1L), captor.capture());
-        assertThat(captor.getValue().getName()).isEqualTo("Harry James Potter");
+        verify(studentRepository, times(1)).findById(STUDENT_ID);
+        verify(studentRepository, times(1)).save(any(Student.class));
     }
 
     @Test
     void delete_shouldReturn204() {
-        doNothing().when(studentService).delete(1L);
+        restTemplate.delete("/student/{id}", STUDENT_ID);
 
-        ResponseEntity<Void> response = restTemplate.exchange(
-                "/student/1",
-                HttpMethod.DELETE,
-                HttpEntity.EMPTY,
-                Void.class
+        verify(studentRepository, times(1)).deleteById(STUDENT_ID);
+    }
+
+    @Test
+    void getByAge_shouldReturn200AndBody() {
+        List<Student> expected = List.of(createdStudent);
+        when(studentRepository.findByAge(STUDENT_AGE)).thenReturn(expected);
+
+        ResponseEntity<Student[]> response = restTemplate.getForEntity(
+                "/student?age={age}",
+                Student[].class,
+                STUDENT_AGE
         );
 
-        assertThat(response.getStatusCode().value()).isEqualTo(204);
-        verify(studentService, times(1)).delete(1L);
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        assertArrayEquals(expected.toArray(new Student[0]), response.getBody());
+
+        verify(studentRepository, times(1)).findByAge(STUDENT_AGE);
     }
 
     @Test
-    void getByAge_shouldReturn200AndList() {
-        when(studentService.getByAge(17)).thenReturn(List.of(
-                Student.builder().id(1L).name("Harry").age(17).build(),
-                Student.builder().id(2L).name("Hermione").age(17).build()
-        ));
+    void getByAgeBetween_shouldReturn200AndBody() {
+        int min = 10;
+        int max = 20;
 
-        ResponseEntity<Student[]> response = restTemplate.getForEntity("/student?age=17", Student[].class);
+        List<Student> expected = List.of(createdStudent);
+        when(studentRepository.findByAgeBetween(min, max)).thenReturn(expected);
 
-        assertThat(response.getStatusCode().value()).isEqualTo(200);
-        assertThat(response.getBody()).isNotNull();
-        assertThat(response.getBody().length).isEqualTo(2);
+        ResponseEntity<Student[]> response = restTemplate.getForEntity(
+                "/student/age-between?min={min}&max={max}",
+                Student[].class,
+                min,
+                max
+        );
 
-        verify(studentService, times(1)).getByAge(17);
-    }
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        assertArrayEquals(expected.toArray(new Student[0]), response.getBody());
 
-    @Test
-    void getByAgeBetween_shouldReturn200AndList() {
-        when(studentService.getByAgeBetween(10, 20)).thenReturn(List.of(
-                Student.builder().id(1L).name("Harry").age(17).build()
-        ));
-
-        ResponseEntity<Student[]> response =
-                restTemplate.getForEntity("/student/age-between?min=10&max=20", Student[].class);
-
-        assertThat(response.getStatusCode().value()).isEqualTo(200);
-        assertThat(response.getBody()).isNotNull();
-        assertThat(response.getBody().length).isEqualTo(1);
-
-        verify(studentService, times(1)).getByAgeBetween(10, 20);
+        verify(studentRepository, times(1)).findByAgeBetween(min, max);
     }
 
     @Test
     void getStudentFaculty_shouldReturn200AndBody() {
         Faculty faculty = Faculty.builder()
-                .id(1L)
-                .name("Gryffindor")
-                .color("Red")
+                .id(FACULTY_ID)
+                .name(FACULTY_NAME)
+                .color(FACULTY_COLOR)
                 .build();
 
-        when(studentService.getFacultyOfStudent(1L)).thenReturn(faculty);
+        Student withFaculty = Student.builder()
+                .id(STUDENT_ID)
+                .name(STUDENT_NAME)
+                .age(STUDENT_AGE)
+                .faculty(faculty)
+                .build();
 
-        ResponseEntity<Faculty> response = restTemplate.getForEntity("/student/1/faculty", Faculty.class);
+        when(studentRepository.findById(STUDENT_ID)).thenReturn(Optional.of(withFaculty));
 
-        assertThat(response.getStatusCode().value()).isEqualTo(200);
-        assertThat(response.getBody()).isNotNull();
-        assertThat(response.getBody().getName()).isEqualTo("Gryffindor");
+        ResponseEntity<Faculty> response = restTemplate.getForEntity(
+                "/student/{id}/faculty",
+                Faculty.class,
+                STUDENT_ID
+        );
 
-        verify(studentService, times(1)).getFacultyOfStudent(1L);
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        assertEquals(faculty, response.getBody());
+
+        verify(studentRepository, times(1)).findById(STUDENT_ID);
     }
 }
