@@ -1,6 +1,8 @@
 package ru.hogwarts.school.controller;
 
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -72,5 +74,10 @@ public class AvatarController {
     @GetMapping
     public List<Avatar> getAll() {
         return avatarService.getAll();
+    }
+
+    @GetMapping("/page")
+    public Page<Avatar> getAllAvatars(@RequestParam int page, @RequestParam int size) {
+        return avatarService.findAll(Pageable.ofSize(size).withPage(page));
     }
 }
