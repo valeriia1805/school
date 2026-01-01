@@ -1,6 +1,8 @@
 package ru.hogwarts.school.service;
 
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 import ru.hogwarts.school.exception.AvatarNotFoundException;
@@ -116,5 +118,9 @@ public class AvatarService {
 
     public List<Avatar> getAll() {
         return avatarRepository.findAll();
+    }
+
+    public Page<Avatar> findAll(Pageable pageable) {
+        return avatarRepository.findAll(pageable);
     }
 }

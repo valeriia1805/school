@@ -49,4 +49,16 @@ public class StudentService {
                 .orElseThrow(() -> new StudentNotFoundException(studentId));
         return student.getFaculty();
     }
+
+    public Long getCount() {
+        return studentRepository.getCountAllStudents();
+    }
+
+    public Double getAverageAge() {
+        return studentRepository.getAvgAge();
+    }
+
+    public List<Student> getLastFiveStudents() {
+        return studentRepository.selectLastFive();
+    }
 }
